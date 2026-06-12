@@ -1,0 +1,29 @@
+/*
+ * Identidade visual GynLog.
+ *
+ * O Swing nao interpreta CSS diretamente. A classe ThemeCss le as variaveis
+ * abaixo e as transforma em Color, Font, espacamentos e tamanhos para a UI.
+ */
+:root {
+    --brand-orange: #FF6A00;
+    --brand-orange-light: #FF8C1A;
+    --brand-gold: #FFB347;
+    --brand-navy: #1F2937;
+    --brand-gray: #6B7280;
+
+    --background: #F5F6F8;
+    --surface: #FFFFFF;
+    --surface-soft: #FFF7F0;
+    --text: #1F2937;
+    --muted: #6B7280;
+    --border: #E5E7EB;
+    --success: #278B63;
+    --danger: #C94C4C;
+
+    --font-family: SansSerif;
+    --font-size: 13;
+    --title-size: 24;
+    --table-row-height: 34;
+    --sidebar-width: 248;
+    --card-padding: 18;
+}
