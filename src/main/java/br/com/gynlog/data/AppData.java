@@ -9,18 +9,46 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Repositório central de dados da aplicação.
+ * Mantém as listas em memória durante o uso e
+ * sincroniza com os arquivos CSV a cada alteração.
+ */
 public final class AppData {
-    private final List<Vehicle> vehicles = new ArrayList<>();
+
+    private final List<Vehicle>     vehicles     = new ArrayList<>();
     private final List<ExpenseType> expenseTypes = new ArrayList<>();
-    private final List<Movement> movements = new ArrayList<>();
-    private final List<Runnable> listeners = new ArrayList<>();
-    private int nextVehicleId = 1;
+    private final List<Movement>    movements    = new ArrayList<>();
+    private final List<Runnable>    listeners    = new ArrayList<>();
+
+    private int nextVehicleId     = 1;
     private int nextExpenseTypeId = 1;
-    private int nextMovementId = 1;
+    private int nextMovementId    = 1;
 
     public AppData() {
-        seed();
+        CsvStorage.inicializar();
+
+        List<Vehicle>     veiculosSalvos = CsvStorage.lerVeiculos();
+        List<ExpenseType> tiposSalvos    = CsvStorage.lerTiposDespesa();
+        List<Movement>    movsSalvos     = CsvStorage.lerMovimentacoes(veiculosSalvos, tiposSalvos);
+
+        if (veiculosSalvos.isEmpty() && tiposSalvos.isEmpty()) {
+            seed();
+        } else {
+            vehicles.addAll(veiculosSalvos);
+            expenseTypes.addAll(tiposSalvos);
+            movements.addAll(movsSalvos);
+
+            vehicles.stream().mapToInt(Vehicle::id).max()
+                    .ifPresent(max -> nextVehicleId = max + 1);
+            expenseTypes.stream().mapToInt(ExpenseType::id).max()
+                    .ifPresent(max -> nextExpenseTypeId = max + 1);
+            movements.stream().mapToInt(Movement::id).max()
+                    .ifPresent(max -> nextMovementId = max + 1);
+        }
     }
+
+    // ─── LEITURA ─────────────────────────────────────────────────────────────
 
     public List<Vehicle> vehicles() {
         return List.copyOf(vehicles);
@@ -38,96 +66,124 @@ public final class AppData {
         listeners.add(listener);
     }
 
+    // ─── VEÍCULOS ────────────────────────────────────────────────────────────
+
     public Vehicle addVehicle(String plate, String model, String brand, int year, String status) {
+        // RD001 — verifica se já existe veículo com a mesma placa
+        String placaNova = plate.trim().toUpperCase().replace("-", "").replace(" ", "");
+        for (Vehicle v : vehicles) {
+            String placaExistente = v.plate().toUpperCase().replace("-", "").replace(" ", "");
+            if (placaExistente.equals(placaNova)) {
+                return null; // placa duplicada
+            }
+        }
         Vehicle vehicle = new Vehicle(nextVehicleId++, plate, model, brand, year, status);
         vehicles.add(vehicle);
-        notifyListeners();
+        salvarENotificar();
         return vehicle;
     }
 
-    public void updateVehicle(Vehicle oldVehicle, String plate, String model, String brand, int year, String status) {
-        Vehicle updated = new Vehicle(oldVehicle.id(), plate, model, brand, year, status);
-        vehicles.replaceAll(vehicle -> vehicle.id() == oldVehicle.id() ? updated : vehicle);
-        movements.replaceAll(movement -> movement.vehicle().id() == oldVehicle.id()
-                ? new Movement(movement.id(), updated, movement.category(), movement.description(), movement.date(), movement.value())
-                : movement);
-        notifyListeners();
+    public void updateVehicle(Vehicle old, String plate, String model, String brand, int year, String status) {
+        Vehicle updated = new Vehicle(old.id(), plate, model, brand, year, status);
+        vehicles.replaceAll(v -> v.id() == old.id() ? updated : v);
+        movements.replaceAll(m -> m.vehicle().id() == old.id()
+                ? new Movement(m.id(), updated, m.category(), m.description(), m.date(), m.value(), m.mileage())
+                : m);
+        salvarENotificar();
     }
 
     public boolean removeVehicle(Vehicle vehicle) {
-        if (movements.stream().anyMatch(movement -> movement.vehicle().id() == vehicle.id())) {
+        // Não permite remover veículo com movimentações — RD010
+        if (movements.stream().anyMatch(m -> m.vehicle().id() == vehicle.id())) {
             return false;
         }
         vehicles.remove(vehicle);
-        notifyListeners();
+        salvarENotificar();
         return true;
     }
+
+    // ─── TIPOS DE DESPESA ────────────────────────────────────────────────────
 
     public ExpenseType addExpenseType(String name, String description) {
         ExpenseType type = new ExpenseType(nextExpenseTypeId++, name, description);
         expenseTypes.add(type);
-        notifyListeners();
+        salvarENotificar();
         return type;
     }
 
-    public void updateExpenseType(ExpenseType oldType, String name, String description) {
-        ExpenseType updated = new ExpenseType(oldType.id(), name, description);
-        expenseTypes.replaceAll(type -> type.id() == oldType.id() ? updated : type);
-        movements.replaceAll(movement -> movement.category().id() == oldType.id()
-                ? new Movement(movement.id(), movement.vehicle(), updated, movement.description(), movement.date(), movement.value())
-                : movement);
-        notifyListeners();
+    public void updateExpenseType(ExpenseType old, String name, String description) {
+        ExpenseType updated = new ExpenseType(old.id(), name, description);
+        expenseTypes.replaceAll(t -> t.id() == old.id() ? updated : t);
+        movements.replaceAll(m -> m.category().id() == old.id()
+                ? new Movement(m.id(), m.vehicle(), updated, m.description(), m.date(), m.value(), m.mileage())
+                : m);
+        salvarENotificar();
     }
 
     public boolean removeExpenseType(ExpenseType type) {
-        if (movements.stream().anyMatch(movement -> movement.category().id() == type.id())) {
+        // Não permite remover tipo com movimentações — RD005
+        if (movements.stream().anyMatch(m -> m.category().id() == type.id())) {
             return false;
         }
         expenseTypes.remove(type);
-        notifyListeners();
+        salvarENotificar();
         return true;
     }
 
+    // ─── MOVIMENTAÇÕES ───────────────────────────────────────────────────────
+
     public Movement addMovement(Vehicle vehicle, ExpenseType category, String description,
-                                LocalDate date, BigDecimal value) {
-        Movement movement = new Movement(nextMovementId++, vehicle, category, description, date, value);
+                                LocalDate date, BigDecimal value, double mileage) {
+        Movement movement = new Movement(nextMovementId++, vehicle, category, description, date, value, mileage);
         movements.add(movement);
-        notifyListeners();
+        salvarENotificar();
         return movement;
     }
 
-    public void updateMovement(Movement oldMovement, Vehicle vehicle, ExpenseType category,
-                               String description, LocalDate date, BigDecimal value) {
-        Movement updated = new Movement(oldMovement.id(), vehicle, category, description, date, value);
-        movements.replaceAll(movement -> movement.id() == oldMovement.id() ? updated : movement);
-        notifyListeners();
+    public void updateMovement(Movement old, Vehicle vehicle, ExpenseType category,
+                               String description, LocalDate date, BigDecimal value, double mileage) {
+        Movement updated = new Movement(old.id(), vehicle, category, description, date, value, mileage);
+        movements.replaceAll(m -> m.id() == old.id() ? updated : m);
+        salvarENotificar();
     }
 
     public void removeMovement(Movement movement) {
         movements.remove(movement);
-        notifyListeners();
+        salvarENotificar();
     }
 
+    // ─── CÁLCULOS ────────────────────────────────────────────────────────────
+
+    /** Soma todas as despesas de todos os veículos. */
     public BigDecimal totalExpenses() {
-        return movements.stream().map(Movement::value).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return movements.stream()
+                .map(Movement::value)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private void notifyListeners() {
+    // ─── INTERNOS ────────────────────────────────────────────────────────────
+
+    /** Salva tudo nos CSVs e avisa as telas para atualizar. */
+    private void salvarENotificar() {
+        CsvStorage.gravarVeiculos(vehicles);
+        CsvStorage.gravarTiposDespesa(expenseTypes);
+        CsvStorage.gravarMovimentacoes(movements);
         listeners.forEach(Runnable::run);
     }
 
+    /** Dados iniciais de demonstração — só roda na primeira vez. */
     private void seed() {
         Vehicle truck = addVehicle("GYN-2040", "Constellation 24.280", "Volkswagen", 2022, "Ativo");
-        Vehicle van = addVehicle("LOG-1010", "Sprinter 417", "Mercedes-Benz", 2023, "Ativo");
-        Vehicle car = addVehicle("FRO-3321", "Strada Endurance", "Fiat", 2021, "Manutencao");
+        Vehicle van   = addVehicle("LOG-1010", "Sprinter 417", "Mercedes-Benz", 2023, "Ativo");
+        Vehicle car   = addVehicle("FRO-3321", "Strada Endurance", "Fiat", 2021, "Manutencao");
 
-        ExpenseType fuel = addExpenseType("Combustivel", "Abastecimento da frota");
+        ExpenseType fuel        = addExpenseType("Combustivel", "Abastecimento da frota");
         ExpenseType maintenance = addExpenseType("Manutencao", "Pecas e servicos mecanicos");
-        ExpenseType toll = addExpenseType("Pedagio", "Tarifas de rodovia");
+        ExpenseType toll        = addExpenseType("Pedagio", "Tarifas de rodovia");
         addExpenseType("Seguro", "Seguro veicular");
 
-        addMovement(truck, fuel, "Abastecimento completo", LocalDate.now().minusDays(2), new BigDecimal("890.50"));
-        addMovement(van, toll, "Rota Goiania - Brasilia", LocalDate.now().minusDays(1), new BigDecimal("76.40"));
-        addMovement(car, maintenance, "Troca de oleo e filtros", LocalDate.now(), new BigDecimal("420.00"));
+        addMovement(truck, fuel,        "Abastecimento completo",  LocalDate.now().minusDays(2), new BigDecimal("890.50"), 0.0);
+        addMovement(van,   toll,        "Rota Goiania - Brasilia", LocalDate.now().minusDays(1), new BigDecimal("76.40"),  0.0);
+        addMovement(car,   maintenance, "Troca de oleo e filtros", LocalDate.now(),              new BigDecimal("420.00"), 0.0);
     }
 }

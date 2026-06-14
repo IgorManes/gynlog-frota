@@ -27,66 +27,75 @@ public final class ExportPanel extends JPanel {
     public ExportPanel(AppData data) {
         this.data = data;
         setLayout(new BorderLayout());
-        JPanel options = new JPanel(new GridLayout(1, 3, 16, 16));
-        options.setOpaque(false);
-        options.add(option("Veiculos", "Exporta o cadastro completo da frota.", this::exportVehicles));
-        options.add(option("Tipos de despesa", "Exporta as categorias cadastradas.", this::exportTypes));
-        options.add(option("Movimentacoes", "Exporta o historico financeiro.", this::exportMovements));
-        add(UiFactory.page("Exportacao", "Gere arquivos CSV compativeis com planilhas", options), BorderLayout.CENTER);
+        JPanel opcoes = new JPanel(new GridLayout(1, 3, 16, 16));
+        opcoes.setOpaque(false);
+        opcoes.add(opcao("Veiculos",        "Exporta o cadastro completo da frota.",   this::exportarVeiculos));
+        opcoes.add(opcao("Tipos de despesa","Exporta as categorias cadastradas.",       this::exportarTipos));
+        opcoes.add(opcao("Movimentacoes",   "Exporta o historico financeiro completo.", this::exportarMovimentacoes));
+        add(UiFactory.page("Exportacao", "Gere arquivos CSV compativeis com planilhas eletronicas", opcoes),
+                BorderLayout.CENTER);
     }
 
-    private JPanel option(String title, String description, Runnable action) {
+    private JPanel opcao(String titulo, String descricao, Runnable acao) {
         JPanel card = UiFactory.card();
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        JLabel descriptionLabel = new JLabel("<html>" + description + "</html>");
-        descriptionLabel.setForeground(Theme.MUTED);
-        JButton export = UiFactory.button("Exportar CSV", AppIcon.Type.EXPORT, Theme.PRIMARY);
-        export.addActionListener(event -> action.run());
-        card.add(titleLabel, BorderLayout.NORTH);
-        card.add(descriptionLabel, BorderLayout.CENTER);
-        card.add(UiFactory.toolbar(export), BorderLayout.SOUTH);
+        JLabel lblTitulo = new JLabel(titulo);
+        lblTitulo.setFont(new Font("SansSerif", Font.BOLD, 18));
+        JLabel lblDescricao = new JLabel("<html>" + descricao + "</html>");
+        lblDescricao.setForeground(Theme.MUTED);
+        JButton exportar = UiFactory.button("Exportar CSV", AppIcon.Type.EXPORT, Theme.PRIMARY);
+        exportar.addActionListener(e -> acao.run());
+        card.add(lblTitulo,   BorderLayout.NORTH);
+        card.add(lblDescricao, BorderLayout.CENTER);
+        card.add(UiFactory.toolbar(exportar), BorderLayout.SOUTH);
         return card;
     }
 
-    private void exportVehicles() {
-        List<String> lines = new ArrayList<>();
-        lines.add("id;placa;modelo;marca;ano;status");
-        data.vehicles().forEach(vehicle -> lines.add(String.join(";",
-                String.valueOf(vehicle.id()), vehicle.plate(), vehicle.model(), vehicle.brand(),
-                String.valueOf(vehicle.year()), vehicle.status())));
-        save("veiculos.csv", lines);
+    private void exportarVeiculos() {
+        List<String> linhas = new ArrayList<>();
+        // Cabeçalho do CSV — compatível com Excel e LibreOffice
+        linhas.add("id;placa;modelo;marca;ano;status");
+        data.vehicles().forEach(v -> linhas.add(String.join(";",
+                String.valueOf(v.id()), v.plate(), v.model(),
+                v.brand(), String.valueOf(v.year()), v.status())));
+        salvar("veiculos.csv", linhas);
     }
 
-    private void exportTypes() {
-        List<String> lines = new ArrayList<>();
-        lines.add("id;nome;descricao");
-        data.expenseTypes().forEach(type ->
-                lines.add(String.join(";", String.valueOf(type.id()), type.name(), type.description())));
-        save("tipos-despesa.csv", lines);
+    private void exportarTipos() {
+        List<String> linhas = new ArrayList<>();
+        linhas.add("id;nome;descricao");
+        data.expenseTypes().forEach(t -> linhas.add(String.join(";",
+                String.valueOf(t.id()), t.name(), t.description())));
+        salvar("tipos_despesa.csv", linhas);
     }
 
-    private void exportMovements() {
-        List<String> lines = new ArrayList<>();
-        lines.add("id;veiculo;categoria;descricao;data;valor");
-        for (Movement movement : data.movements()) {
-            lines.add(String.join(";", String.valueOf(movement.id()), movement.vehicle().plate(),
-                    movement.category().name(), movement.description(), movement.date().toString(),
-                    movement.value().toPlainString()));
+    private void exportarMovimentacoes() {
+        List<String> linhas = new ArrayList<>();
+        // Inclui quilometragem conforme DD003 da documentação
+        linhas.add("id;veiculo;categoria;descricao;data;valor;quilometragem");
+        for (Movement m : data.movements()) {
+            linhas.add(String.join(";",
+                    String.valueOf(m.id()),
+                    m.vehicle().plate(),
+                    m.category().name(),
+                    m.description(),
+                    m.date().toString(),
+                    m.value().toPlainString(),
+                    String.valueOf(m.mileage())
+            ));
         }
-        save("movimentacoes.csv", lines);
+        salvar("movimentacoes.csv", linhas);
     }
 
-    private void save(String suggestedName, List<String> lines) {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setSelectedFile(new java.io.File(suggestedName));
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
-        Path path = chooser.getSelectedFile().toPath();
+    private void salvar(String nomeArquivo, List<String> linhas) {
+        JFileChooser seletor = new JFileChooser();
+        seletor.setSelectedFile(new java.io.File(nomeArquivo));
+        if (seletor.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        Path caminho = seletor.getSelectedFile().toPath();
         try {
-            Files.write(path, lines, StandardCharsets.UTF_8);
-            FormDialogs.info(this, "Arquivo exportado com sucesso:\n" + path);
-        } catch (IOException exception) {
-            FormDialogs.error(this, "Nao foi possivel exportar o arquivo:\n" + exception.getMessage());
+            Files.write(caminho, linhas, StandardCharsets.UTF_8);
+            FormDialogs.info(this, "Arquivo exportado com sucesso:\n" + caminho);
+        } catch (IOException e) {
+            FormDialogs.error(this, "Nao foi possivel exportar:\n" + e.getMessage());
         }
     }
 }

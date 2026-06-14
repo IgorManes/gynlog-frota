@@ -63,8 +63,12 @@ public final class VehiclesPanel extends JPanel {
     private void add() {
         FormDialogs.VehicleForm form = FormDialogs.vehicle(this, null);
         if (form != null) {
-            data.addVehicle(form.plate(), form.model(), form.brand(), form.year(), form.status());
-            FormDialogs.info(this, "Veiculo cadastrado com sucesso.");
+            Vehicle novo = data.addVehicle(form.plate(), form.model(), form.brand(), form.year(), form.status());
+            if (novo == null) {
+                FormDialogs.error(this, "Ja existe um veiculo cadastrado com essa placa.");
+            } else {
+                FormDialogs.info(this, "Veiculo cadastrado com sucesso.");
+            }
         }
     }
 
