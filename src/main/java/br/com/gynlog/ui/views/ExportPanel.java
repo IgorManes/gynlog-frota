@@ -70,7 +70,6 @@ public final class ExportPanel extends JPanel {
 
     private void exportarMovimentacoes() {
         List<String> linhas = new ArrayList<>();
-        // Inclui quilometragem conforme DD003 da documentação
         linhas.add("id;veiculo;categoria;descricao;data;valor;quilometragem");
         for (Movement m : data.movements()) {
             linhas.add(String.join(";",

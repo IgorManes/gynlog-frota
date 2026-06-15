@@ -9,11 +9,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Repositório central de dados da aplicação.
- * Mantém as listas em memória durante o uso e
- * sincroniza com os arquivos CSV a cada alteração.
- */
 public final class AppData {
 
     private final List<Vehicle>     vehicles     = new ArrayList<>();
@@ -48,7 +43,7 @@ public final class AppData {
         }
     }
 
-    // ─── LEITURA ─────────────────────────────────────────────────────────────
+    //LEITURA
 
     public List<Vehicle> vehicles() {
         return List.copyOf(vehicles);
@@ -66,15 +61,14 @@ public final class AppData {
         listeners.add(listener);
     }
 
-    // ─── VEÍCULOS ────────────────────────────────────────────────────────────
+    //VEÍCULOS
 
     public Vehicle addVehicle(String plate, String model, String brand, int year, String status) {
-        // RD001 — verifica se já existe veículo com a mesma placa
         String placaNova = plate.trim().toUpperCase().replace("-", "").replace(" ", "");
         for (Vehicle v : vehicles) {
             String placaExistente = v.plate().toUpperCase().replace("-", "").replace(" ", "");
             if (placaExistente.equals(placaNova)) {
-                return null; // placa duplicada
+                return null;
             }
         }
         Vehicle vehicle = new Vehicle(nextVehicleId++, plate, model, brand, year, status);
@@ -93,7 +87,6 @@ public final class AppData {
     }
 
     public boolean removeVehicle(Vehicle vehicle) {
-        // Não permite remover veículo com movimentações — RD010
         if (movements.stream().anyMatch(m -> m.vehicle().id() == vehicle.id())) {
             return false;
         }
@@ -102,7 +95,7 @@ public final class AppData {
         return true;
     }
 
-    // ─── TIPOS DE DESPESA ────────────────────────────────────────────────────
+    //TIPOS DE DESPESA
 
     public ExpenseType addExpenseType(String name, String description) {
         ExpenseType type = new ExpenseType(nextExpenseTypeId++, name, description);
@@ -121,7 +114,6 @@ public final class AppData {
     }
 
     public boolean removeExpenseType(ExpenseType type) {
-        // Não permite remover tipo com movimentações — RD005
         if (movements.stream().anyMatch(m -> m.category().id() == type.id())) {
             return false;
         }
@@ -130,13 +122,12 @@ public final class AppData {
         return true;
     }
 
-    // ─── MOVIMENTAÇÕES ───────────────────────────────────────────────────────
+    //MOVIMENTAÇÕES
 
     public Movement addMovement(Vehicle vehicle, ExpenseType category, String description,
                                 LocalDate date, BigDecimal value, double mileage) {
-        // RD002 — bloqueia movimentação para veículos inativos ou em manutenção
         if (!vehicle.status().equalsIgnoreCase("Ativo")) {
-            return null; // retorna null para sinalizar que não foi permitido
+            return null;
         }
         Movement movement = new Movement(nextMovementId++, vehicle, category, description, date, value, mileage);
         movements.add(movement);
@@ -156,7 +147,7 @@ public final class AppData {
         salvarENotificar();
     }
 
-    // ─── CÁLCULOS ────────────────────────────────────────────────────────────
+    //CÁLCULOS
 
     /** Soma todas as despesas de todos os veículos. */
     public BigDecimal totalExpenses() {
@@ -165,7 +156,7 @@ public final class AppData {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    // ─── INTERNOS ────────────────────────────────────────────────────────────
+    //INTERNOS
 
     /** Salva tudo nos CSVs e avisa as telas para atualizar. */
     private void salvarENotificar() {
@@ -175,7 +166,7 @@ public final class AppData {
         listeners.forEach(Runnable::run);
     }
 
-    /** Dados iniciais de demonstração — só roda na primeira vez. */
+    //Dados iniciais
     private void seed() {
         Vehicle truck = addVehicle("GYN-2040", "Constellation 24.280", "Volkswagen", 2022, "Ativo");
         Vehicle van   = addVehicle("LOG-1010", "Sprinter 417", "Mercedes-Benz", 2023, "Ativo");

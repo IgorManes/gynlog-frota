@@ -24,10 +24,6 @@ public final class FormDialogs {
     public record VehicleForm(String plate, String model, String brand, int year, String status) {}
     public record ExpenseTypeForm(String name, String description) {}
 
-    /**
-     * Formulário de movimentação agora inclui o campo mileage (quilometragem).
-     * O campo é opcional — se não preenchido, salva como 0.0.
-     */
     public record MovementForm(Vehicle vehicle, ExpenseType category, String description,
                                LocalDate date, BigDecimal value, double mileage) {}
 

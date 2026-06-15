@@ -21,15 +21,6 @@ import java.util.Locale;
 public final class MovementsPanel extends JPanel {
     private final AppData data;
 
-    /*
-     * FILA DE MOVIMENTAÇÕES — EstruturaDados
-     *
-     * Quando o usuário cadastra uma nova movimentação, ela é adicionada
-     * à fila antes de ser salva. Isso garante que as movimentações sejam
-     * processadas na ordem em que foram cadastradas (FIFO).
-     *
-     * Isso atende ao requisito de Estrutura de Dados I do PI.
-     */
     private final EstruturaDados estrutura = new EstruturaDados();
 
     private final DefaultTableModel model = new DefaultTableModel(
@@ -99,10 +90,6 @@ public final class MovementsPanel extends JPanel {
         }
     }
 
-    /**
-     * Processa todas as movimentações da fila na ordem de entrada (FIFO).
-     * Cada movimentação é retirada da fila e confirmada no sistema.
-     */
     private void processarFila() {
         while (!estrutura.estaVazia()) {
             // Retira o primeiro da fila (FIFO) e confirma no sistema

@@ -12,15 +12,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Responsável por ler e gravar os dados em arquivos CSV.
- * Cada entidade tem seu próprio arquivo na pasta "dados".
- *
- * Estrutura dos arquivos:
- *   veiculos.csv        → id;placa;modelo;marca;ano;status
- *   tipos_despesa.csv   → id;nome;descricao
- *   movimentacoes.csv   → id;idVeiculo;idTipoDespesa;descricao;data;valor;quilometragem
- */
 public class CsvStorage {
 
     private static final Path PASTA              = Paths.get("dados");
@@ -38,7 +29,7 @@ public class CsvStorage {
         }
     }
 
-    // ─── VEÍCULOS ────────────────────────────────────────────────────────────
+    //VEÍCULOS
 
     public static List<Vehicle> lerVeiculos() {
         List<Vehicle> lista = new ArrayList<>();
@@ -68,7 +59,7 @@ public class CsvStorage {
         gravarLinhas(ARQUIVO_VEICULOS, linhas);
     }
 
-    // ─── TIPOS DE DESPESA ────────────────────────────────────────────────────
+    //TIPOS DE DESPESA
 
     public static List<ExpenseType> lerTiposDespesa() {
         List<ExpenseType> lista = new ArrayList<>();
@@ -94,7 +85,7 @@ public class CsvStorage {
         gravarLinhas(ARQUIVO_TIPOS, linhas);
     }
 
-    // ─── MOVIMENTAÇÕES ───────────────────────────────────────────────────────
+    //MOVIMENTAÇÕES
 
     public static List<Movement> lerMovimentacoes(List<Vehicle> veiculos, List<ExpenseType> tipos) {
         List<Movement> lista = new ArrayList<>();
@@ -108,7 +99,7 @@ public class CsvStorage {
             ExpenseType tipo   = buscarTipoPorId(tipos, Integer.parseInt(c[2]));
             if (veiculo == null || tipo == null) continue;
 
-            // Quilometragem é opcional — arquivos antigos podem não ter o campo
+            // Quilometragem é opcional
             double km = c.length > 6 ? Double.parseDouble(c[6]) : 0.0;
 
             lista.add(new Movement(
@@ -134,7 +125,7 @@ public class CsvStorage {
         gravarLinhas(ARQUIVO_MOVS, linhas);
     }
 
-    // ─── HELPERS ─────────────────────────────────────────────────────────────
+    //HELPERS
 
     private static List<String> lerLinhas(Path arquivo) {
         try {

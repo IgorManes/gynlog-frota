@@ -108,7 +108,7 @@ public final class ReportsPanel extends JPanel {
         }
     }
 
-    // ─── RELATÓRIO 1 — Despesas por veículo ──────────────────────────────────
+    //RELATÓRIO 1 — Despesas por veículo
     private void relatorio1_DespesasPorVeiculo() {
         NumberFormat moeda = moeda();
         Map<String, BigDecimal> totais = new LinkedHashMap<>();
@@ -123,7 +123,7 @@ public final class ReportsPanel extends JPanel {
         totais.forEach((v, total) -> modeloPrevia.addRow(new Object[]{v, moeda.format(total)}));
     }
 
-    // ─── RELATÓRIO 2 — Total de despesas da frota no mês atual ───────────────
+    //RELATÓRIO 2 — Total de despesas da frota no mês atual
     private void relatorio2_TotalMesAtual() {
         NumberFormat moeda = moeda();
         int mes = java.time.LocalDate.now().getMonthValue();
@@ -138,7 +138,7 @@ public final class ReportsPanel extends JPanel {
         modeloPrevia.addRow(new Object[]{"Total de despesas", moeda.format(total)});
     }
 
-    // ─── RELATÓRIO 3 — Total de combustível no mês atual ─────────────────────
+    //RELATÓRIO 3 — Total de combustível no mês atual
     private void relatorio3_CombustivelMes() {
         NumberFormat moeda = moeda();
         int mes = java.time.LocalDate.now().getMonthValue();
@@ -155,7 +155,7 @@ public final class ReportsPanel extends JPanel {
         modeloPrevia.addRow(new Object[]{"Total com combustivel", moeda.format(total)});
     }
 
-    // ─── RELATÓRIO 4 — Total de IPVA no ano atual ────────────────────────────
+    //RELATÓRIO 4 — Total de IPVA no ano atual
     private void relatorio4_IpvaAno() {
         NumberFormat moeda = moeda();
         int ano = java.time.LocalDate.now().getYear();
@@ -170,7 +170,7 @@ public final class ReportsPanel extends JPanel {
         modeloPrevia.addRow(new Object[]{"Total de IPVA", moeda.format(total)});
     }
 
-    // ─── RELATÓRIO 5 — Veículos inativos ─────────────────────────────────────
+    //RELATÓRIO 5 — Veículos inativos
     private void relatorio5_VeiculosInativos() {
         List<Vehicle> inativos = new ArrayList<>();
         for (Vehicle v : data.vehicles()) {
@@ -189,7 +189,7 @@ public final class ReportsPanel extends JPanel {
         }
     }
 
-    // ─── RELATÓRIO 6 — Multas por veículo no ano atual ───────────────────────
+    //RELATÓRIO 6 — Multas por veículo no ano atual
     private void relatorio6_MultasPorVeiculo() {
         NumberFormat moeda = moeda();
         int ano = java.time.LocalDate.now().getYear();
@@ -208,7 +208,7 @@ public final class ReportsPanel extends JPanel {
         multas.forEach((v, total) -> modeloPrevia.addRow(new Object[]{v, moeda.format(total)}));
     }
 
-    // ─── RELATÓRIO 7 — Média de despesas por categoria ───────────────────────
+    //RELATÓRIO 7 — Média de despesas por categoria
     private void relatorio7_MediaPorCategoria() {
         NumberFormat moeda = moeda();
 
@@ -236,7 +236,7 @@ public final class ReportsPanel extends JPanel {
         }
     }
 
-    // ─── RELATÓRIO 8 — Consumo médio por veículo ─────────────────────────────────
+    //RELATÓRIO 8 — Consumo médio por veículo
     private void relatorio8_ConsumoMedio() {
         for (Vehicle v : data.vehicles()) {
 
@@ -249,7 +249,6 @@ public final class ReportsPanel extends JPanel {
                 }
             }
 
-            // Se não tiver nenhum abastecimento, pula o veículo
             if (todosAbastecimentos.isEmpty()) continue;
 
             // Soma total gasto com combustível
@@ -258,7 +257,6 @@ public final class ReportsPanel extends JPanel {
                 totalCombustivel = totalCombustivel.add(m.value());
             }
 
-            // Coleta apenas os que têm quilometragem preenchida
             List<Movement> comKm = new ArrayList<>();
             for (Movement m : todosAbastecimentos) {
                 if (m.mileage() > 0) comKm.add(m);
@@ -273,7 +271,7 @@ public final class ReportsPanel extends JPanel {
                 continue;
             }
 
-            // Ordena por quilometragem — bubble sort manual
+            // Ordena por quilometragem — bubble sort
             for (int i = 0; i < comKm.size() - 1; i++) {
                 for (int j = 0; j < comKm.size() - 1 - i; j++) {
                     if (comKm.get(j).mileage() > comKm.get(j + 1).mileage()) {
@@ -288,7 +286,6 @@ public final class ReportsPanel extends JPanel {
             double kmFinal   = comKm.get(comKm.size() - 1).mileage();
             double distancia = kmFinal - kmInicial;
 
-            // Soma combustível dos abastecimentos intermediários (exceto o primeiro)
             BigDecimal totalIntermediario = BigDecimal.ZERO;
             for (int i = 1; i < comKm.size(); i++) {
                 totalIntermediario = totalIntermediario.add(comKm.get(i).value());
@@ -309,7 +306,7 @@ public final class ReportsPanel extends JPanel {
         }
     }
 
-    // ─── RELATÓRIO 9 — Custo médio de IPVA no ano ────────────────────────────
+    //RELATÓRIO 9 — Custo médio de IPVA no ano
     private void relatorio9_CustoMedioIpva() {
         NumberFormat moeda = moeda();
         int ano = java.time.LocalDate.now().getYear();
@@ -336,11 +333,10 @@ public final class ReportsPanel extends JPanel {
         modeloPrevia.addRow(new Object[]{"Custo medio de IPVA", moeda.format(media)});
     }
 
-    // ─── RELATÓRIO 10 — Veículo de maior e menor custo ───────────────────────
+    //RELATÓRIO 10 — Veículo de maior e menor custo
     private void relatorio10_MaiorMenorCusto() {
         NumberFormat moeda = moeda();
 
-        // Monta o mapa de custo total por veículo manualmente
         Map<Integer, BigDecimal> totaisPorId = new HashMap<>();
         for (Vehicle v : data.vehicles()) {
             BigDecimal total = BigDecimal.ZERO;
@@ -357,15 +353,7 @@ public final class ReportsPanel extends JPanel {
             return;
         }
 
-        /*
-         * ORDENAÇÃO MANUAL — Selection Sort via EstruturaDados
-         *
-         * Em vez de usar Collections.sort ou Stream.sorted,
-         * chamamos nossa implementação manual do Selection Sort
-         * que ordena a lista de veículos pelo custo total.
-         *
-         * Isso atende ao requisito de Estrutura de Dados I do PI.
-         */
+        //Selection Sort
         List<Vehicle> ordenados = estrutura.ordenarVeiculosPorCusto(
                 data.vehicles(), totaisPorId, false); // false = maior para menor
 
