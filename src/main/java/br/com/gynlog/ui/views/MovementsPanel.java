@@ -63,17 +63,17 @@ public final class MovementsPanel extends JPanel {
         FormDialogs.MovementForm form = FormDialogs.movement(
                 this, data.vehicles(), data.expenseTypes(), null);
         if (form != null) {
-            // 1. Cria a movimentação temporariamente para enfileirar
             Movement nova = data.addMovement(
                     form.vehicle(), form.category(), form.description(),
                     form.date(), form.value(), form.mileage());
 
-            // 2. Enfileira a movimentação (estrutura de dados — fila FIFO)
+            if (nova == null) {
+                FormDialogs.error(this, "Nao e permitido registrar despesas para veiculos inativos ou em manutencao.");
+                return;
+            }
+
             estrutura.enfileirar(nova);
-
-            // 3. Processa todas as movimentações da fila na ordem de cadastro
             processarFila();
-
             FormDialogs.info(this, "Movimentacao registrada.");
         }
     }

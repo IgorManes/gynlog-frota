@@ -134,6 +134,10 @@ public final class AppData {
 
     public Movement addMovement(Vehicle vehicle, ExpenseType category, String description,
                                 LocalDate date, BigDecimal value, double mileage) {
+        // RD002 — bloqueia movimentação para veículos inativos ou em manutenção
+        if (!vehicle.status().equalsIgnoreCase("Ativo")) {
+            return null; // retorna null para sinalizar que não foi permitido
+        }
         Movement movement = new Movement(nextMovementId++, vehicle, category, description, date, value, mileage);
         movements.add(movement);
         salvarENotificar();
