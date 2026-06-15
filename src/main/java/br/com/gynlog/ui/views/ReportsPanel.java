@@ -11,6 +11,8 @@ import br.com.gynlog.ui.components.UiFactory;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -19,11 +21,12 @@ import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,8 +49,6 @@ public final class ReportsPanel extends JPanel {
     };
 
     private final AppData data;
-
-    // Instância da nossa estrutura de dados — usada para ordenação manual no relatório 10
     private final EstruturaDados estrutura = new EstruturaDados();
 
     private final JList<String> listaRelatorios = new JList<>(new DefaultListModel<>());
@@ -56,9 +57,26 @@ public final class ReportsPanel extends JPanel {
         @Override public boolean isCellEditable(int row, int column) { return false; }
     };
 
+    // Filtros de mês e ano
+    private final JComboBox<Integer> comboMes;
+    private final JComboBox<Integer> comboAno;
+
     public ReportsPanel(AppData data) {
         this.data = data;
         setLayout(new BorderLayout());
+
+        // Inicializa os combos com mês e ano atual
+        int mesAtual = LocalDate.now().getMonthValue();
+        int anoAtual = LocalDate.now().getYear();
+
+        Integer[] meses = {1,2,3,4,5,6,7,8,9,10,11,12};
+        comboMes = new JComboBox<>(meses);
+        comboMes.setSelectedItem(mesAtual);
+
+        Integer[] anos = new Integer[10];
+        for (int i = 0; i < 10; i++) anos[i] = anoAtual - i;
+        comboAno = new JComboBox<>(anos);
+        comboAno.setSelectedItem(anoAtual);
 
         DefaultListModel<String> modelo = (DefaultListModel<String>) listaRelatorios.getModel();
         for (String r : RELATORIOS) modelo.addElement(r);
@@ -72,12 +90,27 @@ public final class ReportsPanel extends JPanel {
         esquerda.add(new JScrollPane(listaRelatorios), BorderLayout.CENTER);
 
         JPanel direita = UiFactory.card();
+
+        // Toolbar com botão gerar + filtros de mês e ano
         JButton gerar = UiFactory.button("Gerar relatorio", AppIcon.Type.REPORT, Theme.PRIMARY);
         gerar.addActionListener(e -> {
             atualizarPrevia();
             FormDialogs.info(this, "Previa gerada com os dados atuais.");
         });
-        direita.add(UiFactory.toolbar(gerar), BorderLayout.NORTH);
+
+        JPanel filtros = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        filtros.setOpaque(false);
+        filtros.add(new JLabel("Mes:"));
+        filtros.add(comboMes);
+        filtros.add(new JLabel("Ano:"));
+        filtros.add(comboAno);
+
+        JPanel toolbar = new JPanel(new BorderLayout());
+        toolbar.setOpaque(false);
+        toolbar.add(UiFactory.toolbar(gerar), BorderLayout.WEST);
+        toolbar.add(filtros, BorderLayout.EAST);
+
+        direita.add(toolbar, BorderLayout.NORTH);
         direita.add(UiFactory.tableScroll(new JTable(modeloPrevia)), BorderLayout.CENTER);
 
         JSplitPane divisor = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, esquerda, direita);
@@ -88,6 +121,16 @@ public final class ReportsPanel extends JPanel {
         add(UiFactory.page("Relatorios", "10 relatorios obrigatorios do sistema", divisor), BorderLayout.CENTER);
         listaRelatorios.setSelectedIndex(0);
         data.addListener(this::atualizarPrevia);
+    }
+
+    // Retorna o mês selecionado no combo
+    private int mesSelecionado() {
+        return (Integer) comboMes.getSelectedItem();
+    }
+
+    // Retorna o ano selecionado no combo
+    private int anoSelecionado() {
+        return (Integer) comboAno.getSelectedItem();
     }
 
     private void atualizarPrevia() {
@@ -108,7 +151,6 @@ public final class ReportsPanel extends JPanel {
         }
     }
 
-    //RELATÓRIO 1 — Despesas por veículo
     private void relatorio1_DespesasPorVeiculo() {
         NumberFormat moeda = moeda();
         Map<String, BigDecimal> totais = new LinkedHashMap<>();
@@ -123,11 +165,10 @@ public final class ReportsPanel extends JPanel {
         totais.forEach((v, total) -> modeloPrevia.addRow(new Object[]{v, moeda.format(total)}));
     }
 
-    //RELATÓRIO 2 — Total de despesas da frota no mês atual
     private void relatorio2_TotalMesAtual() {
         NumberFormat moeda = moeda();
-        int mes = java.time.LocalDate.now().getMonthValue();
-        int ano = java.time.LocalDate.now().getYear();
+        int mes = mesSelecionado();
+        int ano = anoSelecionado();
         BigDecimal total = BigDecimal.ZERO;
         for (Movement m : data.movements()) {
             if (m.date().getMonthValue() == mes && m.date().getYear() == ano) {
@@ -138,11 +179,10 @@ public final class ReportsPanel extends JPanel {
         modeloPrevia.addRow(new Object[]{"Total de despesas", moeda.format(total)});
     }
 
-    //RELATÓRIO 3 — Total de combustível no mês atual
     private void relatorio3_CombustivelMes() {
         NumberFormat moeda = moeda();
-        int mes = java.time.LocalDate.now().getMonthValue();
-        int ano = java.time.LocalDate.now().getYear();
+        int mes = mesSelecionado();
+        int ano = anoSelecionado();
         BigDecimal total = BigDecimal.ZERO;
         for (Movement m : data.movements()) {
             if (m.date().getMonthValue() == mes
@@ -155,10 +195,9 @@ public final class ReportsPanel extends JPanel {
         modeloPrevia.addRow(new Object[]{"Total com combustivel", moeda.format(total)});
     }
 
-    //RELATÓRIO 4 — Total de IPVA no ano atual
     private void relatorio4_IpvaAno() {
         NumberFormat moeda = moeda();
-        int ano = java.time.LocalDate.now().getYear();
+        int ano = anoSelecionado();
         BigDecimal total = BigDecimal.ZERO;
         for (Movement m : data.movements()) {
             if (m.date().getYear() == ano
@@ -170,7 +209,6 @@ public final class ReportsPanel extends JPanel {
         modeloPrevia.addRow(new Object[]{"Total de IPVA", moeda.format(total)});
     }
 
-    //RELATÓRIO 5 — Veículos inativos
     private void relatorio5_VeiculosInativos() {
         List<Vehicle> inativos = new ArrayList<>();
         for (Vehicle v : data.vehicles()) {
@@ -189,10 +227,9 @@ public final class ReportsPanel extends JPanel {
         }
     }
 
-    //RELATÓRIO 6 — Multas por veículo no ano atual
     private void relatorio6_MultasPorVeiculo() {
         NumberFormat moeda = moeda();
-        int ano = java.time.LocalDate.now().getYear();
+        int ano = anoSelecionado();
         Map<String, BigDecimal> multas = new LinkedHashMap<>();
         for (Movement m : data.movements()) {
             if (m.date().getYear() == ano
@@ -208,39 +245,27 @@ public final class ReportsPanel extends JPanel {
         multas.forEach((v, total) -> modeloPrevia.addRow(new Object[]{v, moeda.format(total)}));
     }
 
-    //RELATÓRIO 7 — Média de despesas por categoria
     private void relatorio7_MediaPorCategoria() {
         NumberFormat moeda = moeda();
-
-        // Agrupa manualmente por categoria usando Map
         Map<String, List<BigDecimal>> porCategoria = new LinkedHashMap<>();
         for (Movement m : data.movements()) {
             String cat = m.category().name();
             porCategoria.computeIfAbsent(cat, k -> new ArrayList<>()).add(m.value());
         }
-
         if (porCategoria.isEmpty()) {
             modeloPrevia.addRow(new Object[]{"Nenhuma movimentacao registrada", "-"});
             return;
         }
-
-        // Calcula a média de cada categoria manualmente
         for (Map.Entry<String, List<BigDecimal>> entrada : porCategoria.entrySet()) {
             BigDecimal soma = BigDecimal.ZERO;
-            for (BigDecimal valor : entrada.getValue()) {
-                soma = soma.add(valor);
-            }
-            BigDecimal media = soma.divide(
-                    BigDecimal.valueOf(entrada.getValue().size()), 2, RoundingMode.HALF_UP);
+            for (BigDecimal valor : entrada.getValue()) soma = soma.add(valor);
+            BigDecimal media = soma.divide(BigDecimal.valueOf(entrada.getValue().size()), 2, RoundingMode.HALF_UP);
             modeloPrevia.addRow(new Object[]{entrada.getKey(), moeda.format(media)});
         }
     }
 
-    //RELATÓRIO 8 — Consumo médio por veículo
     private void relatorio8_ConsumoMedio() {
         for (Vehicle v : data.vehicles()) {
-
-            // Coleta todos os abastecimentos do veículo
             List<Movement> todosAbastecimentos = new ArrayList<>();
             for (Movement m : data.movements()) {
                 if (m.vehicle().id() == v.id()
@@ -248,21 +273,16 @@ public final class ReportsPanel extends JPanel {
                     todosAbastecimentos.add(m);
                 }
             }
-
             if (todosAbastecimentos.isEmpty()) continue;
 
-            // Soma total gasto com combustível
             BigDecimal totalCombustivel = BigDecimal.ZERO;
-            for (Movement m : todosAbastecimentos) {
-                totalCombustivel = totalCombustivel.add(m.value());
-            }
+            for (Movement m : todosAbastecimentos) totalCombustivel = totalCombustivel.add(m.value());
 
             List<Movement> comKm = new ArrayList<>();
             for (Movement m : todosAbastecimentos) {
                 if (m.mileage() > 0) comKm.add(m);
             }
 
-            // Se não tiver pelo menos 2 registros com km, mostra só o total gasto
             if (comKm.size() < 2) {
                 modeloPrevia.addRow(new Object[]{
                         v.plate() + " - " + v.model(),
@@ -271,7 +291,6 @@ public final class ReportsPanel extends JPanel {
                 continue;
             }
 
-            // Ordena por quilometragem — bubble sort
             for (int i = 0; i < comKm.size() - 1; i++) {
                 for (int j = 0; j < comKm.size() - 1 - i; j++) {
                     if (comKm.get(j).mileage() > comKm.get(j + 1).mileage()) {
@@ -287,9 +306,7 @@ public final class ReportsPanel extends JPanel {
             double distancia = kmFinal - kmInicial;
 
             BigDecimal totalIntermediario = BigDecimal.ZERO;
-            for (int i = 1; i < comKm.size(); i++) {
-                totalIntermediario = totalIntermediario.add(comKm.get(i).value());
-            }
+            for (int i = 1; i < comKm.size(); i++) totalIntermediario = totalIntermediario.add(comKm.get(i).value());
 
             if (totalIntermediario.compareTo(BigDecimal.ZERO) > 0 && distancia > 0) {
                 double consumo = distancia / totalIntermediario.doubleValue();
@@ -306,11 +323,9 @@ public final class ReportsPanel extends JPanel {
         }
     }
 
-    //RELATÓRIO 9 — Custo médio de IPVA no ano
     private void relatorio9_CustoMedioIpva() {
         NumberFormat moeda = moeda();
-        int ano = java.time.LocalDate.now().getYear();
-
+        int ano = anoSelecionado();
         List<BigDecimal> valores = new ArrayList<>();
         for (Movement m : data.movements()) {
             if (m.date().getYear() == ano
@@ -318,55 +333,39 @@ public final class ReportsPanel extends JPanel {
                 valores.add(m.value());
             }
         }
-
         if (valores.isEmpty()) {
             modeloPrevia.addRow(new Object[]{"Nenhum IPVA registrado em " + ano, "-"});
             return;
         }
-
         BigDecimal soma = BigDecimal.ZERO;
         for (BigDecimal v : valores) soma = soma.add(v);
         BigDecimal media = soma.divide(BigDecimal.valueOf(valores.size()), 2, RoundingMode.HALF_UP);
-
         modeloPrevia.addRow(new Object[]{"Ano de referencia", String.valueOf(ano)});
         modeloPrevia.addRow(new Object[]{"Total de registros IPVA", String.valueOf(valores.size())});
         modeloPrevia.addRow(new Object[]{"Custo medio de IPVA", moeda.format(media)});
     }
 
-    //RELATÓRIO 10 — Veículo de maior e menor custo
     private void relatorio10_MaiorMenorCusto() {
         NumberFormat moeda = moeda();
-
         Map<Integer, BigDecimal> totaisPorId = new HashMap<>();
         for (Vehicle v : data.vehicles()) {
             BigDecimal total = BigDecimal.ZERO;
             for (Movement m : data.movements()) {
-                if (m.vehicle().id() == v.id()) {
-                    total = total.add(m.value());
-                }
+                if (m.vehicle().id() == v.id()) total = total.add(m.value());
             }
             totaisPorId.put(v.id(), total);
         }
-
         if (totaisPorId.isEmpty()) {
             modeloPrevia.addRow(new Object[]{"Nenhum veiculo cadastrado", "-"});
             return;
         }
-
-        //Selection Sort
-        List<Vehicle> ordenados = estrutura.ordenarVeiculosPorCusto(
-                data.vehicles(), totaisPorId, false); // false = maior para menor
-
+        List<Vehicle> ordenados = estrutura.ordenarVeiculosPorCusto(data.vehicles(), totaisPorId, false);
         Vehicle maior = ordenados.get(0);
         Vehicle menor = ordenados.get(ordenados.size() - 1);
-
         modeloPrevia.addRow(new Object[]{"Veiculo de MAIOR custo",
-                maior.plate() + " - " + maior.model()
-                        + " | " + moeda.format(totaisPorId.get(maior.id()))});
+                maior.plate() + " - " + maior.model() + " | " + moeda.format(totaisPorId.get(maior.id()))});
         modeloPrevia.addRow(new Object[]{"Veiculo de MENOR custo",
-                menor.plate() + " - " + menor.model()
-                        + " | " + moeda.format(totaisPorId.get(menor.id()))});
-
+                menor.plate() + " - " + menor.model() + " | " + moeda.format(totaisPorId.get(menor.id()))});
         modeloPrevia.addRow(new Object[]{"--- Todos os veiculos ---", "---"});
         for (Vehicle v : ordenados) {
             modeloPrevia.addRow(new Object[]{
